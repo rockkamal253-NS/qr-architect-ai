@@ -171,7 +171,7 @@ export const Designer = memo(function Designer({ design, onDesignChange, onApply
 
             <div className={cx('pt-4 border-t space-y-4', borderSoft)}>
               <Slider label="Margin" value={design.margin} min={0} max={40} onChange={(v) => onDesignChange('margin', v)} unit="px" />
-              <Slider label="Size" value={design.size} min={200} max={600} step={10} onChange={(v) => onDesignChange('size', v)} unit="px" />
+              <Slider label="Size" value={design.size} min={200} max={1200} step={10} onChange={(v) => onDesignChange('size', v)} unit="px" />
             </div>
 
             <div className={cx('pt-4 border-t', borderSoft)}>

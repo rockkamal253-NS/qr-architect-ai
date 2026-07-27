@@ -241,3 +241,11 @@ input[type="color"]::-moz-color-swatch { border: none; border-radius: 6px; }
 img, .avatar-preview {
   image-rendering: auto;
 }
+
+/* Crisp-edges rendering for QR canvas to avoid bilinear blur */
+.qr-canvas {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  display: block;
+}

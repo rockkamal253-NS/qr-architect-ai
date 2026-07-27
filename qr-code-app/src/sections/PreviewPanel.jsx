@@ -1,6 +1,6 @@
 import { memo, useState, useRef, useEffect } from 'react';
 import { ScanLine, Download, Copy, Check, AlertCircle, Loader2, ChevronDown, FileImage, Layers, Share2 } from 'lucide-react';
-import { useTheme } from '../hooks';
+import { useTheme, useAutoScale } from '../hooks';
 import { cx } from '../ui-components';
 
 const PREVIEW_SIZE = 280;
@@ -28,10 +28,11 @@ const PreviewFrame = memo(function PreviewFrame({ children, design }) {
   );
 });
 
-export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validation, scriptState, qrRef, onDownload, onCopy, copyState, bufferSize = 600, hashPrefix = '00000000', onVerifyOpen }) {
+export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validation, scriptState, qrRef, onDownload, onCopy, copyState, bufferSize = 800, hashPrefix = '00000000', onVerifyOpen }) {
   const { isDark, glass, glassSoft, borderSoft, textDim, textMuted } = useTheme();
   const [exportMenu, setExportMenu] = useState(false);
   const menuRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
@@ -44,10 +45,11 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
   const showInvalid = scriptState === 'ready' && validation.state === 'invalid';
   const showScan = scriptState === 'ready' && !showInvalid;
 
-  const currentBuffer = bufferSize || Math.max(600, (design.size || 300) * 2);
-  const scale = PREVIEW_SIZE / currentBuffer;
+  const currentBuffer = bufferSize || Math.max(800, (design.size || 300) * 2);
+  const { scale: autoScale } = useAutoScale(containerRef, currentBuffer, currentBuffer);
+  const scale = autoScale || (PREVIEW_SIZE / currentBuffer);
 
-  const rasterResText = `Export: ${design.size * 2} × ${design.size * 2} px (2× Ultra HD)`;
+  const rasterResText = `PNG/JPEG/WebP: Export at ${design.size * 2} × ${design.size * 2} px (2× Ultra HD)`;
   const svgResText = `SVG: infinite vector scaling (at ${design.size} pt)`;
 
   return (
@@ -70,7 +72,7 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
 
         <div className="p-6">
           <PreviewFrame design={design}>
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl mx-auto" style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}>
+            <div ref={containerRef} className="relative rounded-2xl overflow-hidden shadow-2xl mx-auto w-full" style={{ height: PREVIEW_SIZE }}>
               <div
                 ref={qrRef}
                 id="preview-qr-container"

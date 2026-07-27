@@ -82,6 +82,32 @@ export function useScriptLoader(src, globalName, maxRetries = 2) {
   return state;
 }
 
+/* ─── Auto-Scaling Preview Hook (ResizeObserver + transform: scale) ─── */
+export function useAutoScale(containerRef, bufferWidth, bufferHeight) {
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !bufferWidth || bufferWidth === 0) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const containerW = entry.contentBoxSize?.[0]?.inlineSize ?? entry.contentRect.width;
+      if (containerW > 0) {
+        const newScale = Math.min(1, containerW / bufferWidth);
+        setScale(newScale);
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef, bufferWidth]);
+
+  const wrapperHeight = (bufferHeight || 800) * scale;
+  return { scale, wrapperHeight };
+}
+
 /* ─── QR Code with debounced updates ─── */
 export function useQR({ scriptReady, data, design }) {
   const containerRef = useRef(null);
@@ -91,10 +117,10 @@ export function useQR({ scriptReady, data, design }) {
 
   useEffect(() => { designRef.current = design; }, [design]);
 
-  // Requirement: Explicit buffer size (2x resolution for 2x Ultra HD rendering)
-  const bufferSize = useMemo(() => Math.max(600, (design.size || 300) * 2), [design.size]);
+  // Requirement: Explicit 2x Ultra HD buffer size (800px to 2400px)
+  const bufferSize = useMemo(() => Math.max(800, (design.size || 300) * 2), [design.size]);
   const proportionalMargin = useMemo(() => Math.round((design.margin || 12) * (bufferSize / Math.max(1, design.size || 300))), [design.margin, design.size, bufferSize]);
-  const logoMargin = useMemo(() => Math.round(12 * (bufferSize / 600)), [bufferSize]);
+  const logoMargin = useMemo(() => Math.round(16 * (bufferSize / 800)), [bufferSize]);
 
   const options = useMemo(() => ({
     width: bufferSize,
@@ -149,11 +175,13 @@ export function useQR({ scriptReady, data, design }) {
         instance.append(containerRef.current);
         instanceRef.current = instance;
 
-        // Requirement: Toggle imageSmoothingEnabled so logo overlay remains smooth
+        // Apply crisp-edges class and imageSmoothing settings
         const canvas = containerRef.current.querySelector('canvas');
         if (canvas) {
+          canvas.classList.add('qr-canvas');
           const ctx = canvas.getContext('2d');
           if (ctx) {
+            // Enable smooth scaling for logo overlays
             ctx.imageSmoothingEnabled = true;
           }
         }
