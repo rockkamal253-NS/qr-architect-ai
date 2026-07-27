@@ -255,25 +255,38 @@ function AppInner() {
     store.addHistory(item);
   }, [store, qrData]);
 
-  // Requirement: Export filename with hash prefix & SVG comment injection
+  // Requirement: Export filename with hash prefix, design.size SVG scaling & comment injection
   const onDownload = useCallback(async (ext) => {
     const activeInstance = desktopInstance.current || mobileInstance.current;
     if (!activeInstance || scriptState !== 'ready') return;
     try {
       const fileName = `qr-${hashPrefix || '00000000'}`;
-      if (ext === 'svg' && activeInstance.getRawData) {
+      if (ext === 'svg') {
+        let svgText = '';
         try {
           const rawBlob = await activeInstance.getRawData('svg');
-          const svgText = await rawBlob.text();
-          const commentInjected = injectSvgHashComment(svgText, fullHash);
-          const blob = new Blob([commentInjected], { type: 'image/svg+xml' });
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = `${fileName}.svg`;
-          link.click();
+          svgText = await rawBlob.text();
         } catch {
-          activeInstance.download({ extension: 'svg', name: fileName });
+          const svgInstance = new window.QRCodeStyling({
+            ...activeInstance._options,
+            width: store.design.size,
+            height: store.design.size,
+          });
+          const rawBlob = await svgInstance.getRawData('svg');
+          svgText = await rawBlob.text();
         }
+
+        // Ensure SVG width and height attributes use design.size directly (independent of 2x raster bufferSize)
+        svgText = svgText
+          .replace(/(<svg[^>]*?\bwidth=")[^"]*"/i, `$1${store.design.size}"`)
+          .replace(/(<svg[^>]*?\bheight=")[^"]*"/i, `$1${store.design.size}"`);
+
+        const commentInjected = injectSvgHashComment(svgText, fullHash);
+        const blob = new Blob([commentInjected], { type: 'image/svg+xml' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${fileName}.svg`;
+        link.click();
       } else {
         activeInstance.download({ extension: ext, name: fileName });
       }
