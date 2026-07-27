@@ -236,3 +236,10 @@ input[type="color"]::-moz-color-swatch { border: none; border-radius: 6px; }
   .no-print { display: none !important; }
   body { background: white !important; }
 }
+
+/* Ensure the preview canvas and SVG scale to fit the container */
+#preview-qr-container canvas, #preview-qr-container svg {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+}

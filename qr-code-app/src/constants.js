@@ -304,17 +304,42 @@ export const AI_THEMES = {
 /* ─── AI Scoring ─── */
 export const scoreAITheme = (prompt) => {
   const p = prompt.toLowerCase();
+
+  // Define synonym mappings for broader understanding
+  const synonymMap = {
+    neon: ['cyberpunk', 'cyber', 'synthwave', 'retrowave', 'electric', 'vaporwave', 'miami', 'arcade', 'matrix', 'glow', 'violet', 'purple', 'party', 'laser', 'futuristic', 'bright'],
+    corporate: ['business', 'professional', 'enterprise', 'finance', 'banking', 'executive', 'law', 'office', 'admin', 'tech', 'software', 'serious', 'formal', 'minimal', 'clean', 'simple'],
+    nature: ['forest', 'organic', 'botanical', 'eco', 'leaf', 'green', 'plant', 'earth', 'woodland', 'moss', 'garden', 'meadow', 'tree', 'clean', 'fresh'],
+    ocean: ['sea', 'water', 'aqua', 'marine', 'wave', 'nautical', 'coast', 'deep', 'blue', 'river', 'lake', 'pool', 'sky', 'chill', 'cool'],
+    sunset: ['sunrise', 'warm', 'golden', 'dawn', 'dusk', 'fire', 'amber', 'coral', 'orange', 'red', 'yellow', 'gold', 'summer', 'desert', 'autumn'],
+    luxury: ['gold', 'premium', 'royal', 'refined', 'elegant', 'boutique', 'couture', 'marble', 'expensive', 'classy', 'fancy', 'chic', 'rich', 'vip', 'diamond', 'silver'],
+    mono: ['monochrome', 'minimalism', 'brutal', 'brutalist', 'print', 'newspaper', 'swiss', 'grayscale', 'stark', 'ink', 'charcoal', 'dark', 'light', 'classic', 'retro', 'black', 'white'],
+    pastel: ['soft', 'candy', 'cute', 'dreamy', 'kawaii', 'bubblegum', 'cotton', 'baby', 'pink', 'lavender', 'cream', 'peach']
+  };
+
   const ranked = Object.entries(AI_THEMES)
-    .map(([key, theme]) => ({
-      key,
-      score: theme.keywords.reduce((a, kw) => a + (p.includes(kw) ? 1 : 0), 0),
-      patch: theme.patch,
-    }))
+    .map(([key, theme]) => {
+      // Direct keywords score
+      let score = theme.keywords.reduce((a, kw) => a + (p.includes(kw) ? 2 : 0), 0);
+      
+      // Synonym keywords score
+      const synonyms = synonymMap[key] || [];
+      score += synonyms.reduce((a, syn) => a + (p.includes(syn) ? 1 : 0), 0);
+      
+      return { key, score, patch: theme.patch };
+    })
     .sort((a, b) => b.score - a.score);
+
   const top = ranked[0];
-  if (top.score === 0) return null;
+
+  // If there's no match at all, fallback to a sensible default or closest fallback (corporate/mono) instead of failing
+  if (top.score === 0) {
+    const defaultTheme = AI_THEMES.mono;
+    return { key: 'mono', patch: defaultTheme.patch, confidence: 0.15 };
+  }
+
   const total = ranked.reduce((a, r) => a + r.score, 0);
-  return { key: top.key, patch: top.patch, confidence: Math.min(1, top.score / Math.max(total, 1) + 0.2) };
+  return { key: top.key, patch: top.patch, confidence: Math.min(1, Math.max(0.35, top.score / Math.max(total, 1) + 0.1)) };
 };
 
 /* ─── URL State Encoding ─── */
@@ -375,7 +400,7 @@ export const compressImage = (file, maxWidth = 96, quality = 0.6) => {
 
 /* ─── Avatar Storage (separate from QR payload) ─── */
 const AVATAR_PREFIX = 'qr:avatar:';
-const MAX_AVATAR_SIZE = 50000; // 50KB limit for stored avatars
+const MAX_AVATAR_SIZE = 120000; // 120KB limit for stored avatars (fits 256x256 high quality)
 
 export const storeAvatar = (base64Image) => {
   if (!base64Image || base64Image.length > MAX_AVATAR_SIZE * 2) {

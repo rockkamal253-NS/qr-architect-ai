@@ -3,11 +3,13 @@ import { ScanLine, Download, Copy, Check, AlertCircle, Loader2, ChevronDown, Fil
 import { useTheme } from '../hooks';
 import { cx } from '../ui-components';
 
+const PREVIEW_SIZE = 280;
+
 const PreviewFrame = memo(function PreviewFrame({ children, design }) {
   const showLabel = design.frameText && design.frameText.trim().length > 0;
 
   return (
-    <div className="relative mx-auto" style={{ width: design.size, height: showLabel ? design.size + 44 : design.size }}>
+    <div className="relative mx-auto" style={{ width: PREVIEW_SIZE, height: showLabel ? PREVIEW_SIZE + 44 : PREVIEW_SIZE }}>
       <span className="absolute -top-2 -left-2 w-5 h-5 border-t-2 border-l-2 border-indigo-500/60 rounded-tl" />
       <span className="absolute -top-2 -right-2 w-5 h-5 border-t-2 border-r-2 border-indigo-500/60 rounded-tr" />
       <span className="absolute -bottom-2 -left-2 w-5 h-5 border-b-2 border-l-2 border-pink-500/60 rounded-bl"
@@ -57,18 +59,18 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
 
         <div className="p-6">
           <PreviewFrame design={design}>
-            <div ref={qrRef} className="rounded-2xl overflow-hidden shadow-2xl relative"
-              style={{ width: design.size, height: design.size, backgroundColor: design.backgroundColor }} />
+            <div ref={qrRef} id="preview-qr-container" className="rounded-2xl overflow-hidden shadow-2xl relative"
+              style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE, backgroundColor: design.backgroundColor }} />
             {showScan && (
               <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none"
-                style={{ height: design.size }}>
-                <div className="qr-scanline" style={{ '--scan-height': `${design.size + 8}px` }} />
+                style={{ height: PREVIEW_SIZE }}>
+                <div className="qr-scanline" style={{ '--scan-height': `${PREVIEW_SIZE + 8}px` }} />
               </div>
             )}
             {scriptState !== 'ready' && (
               <div className={cx('absolute inset-0 flex flex-col items-center justify-center rounded-2xl backdrop-blur',
                 isDark ? 'bg-[#07081a]/85' : 'bg-white/95')}
-                style={{ height: design.size }}>
+                style={{ height: PREVIEW_SIZE }}>
                 {scriptState === 'loading' ? (
                   <>
                     <Loader2 size={28} className={cx('animate-spin mb-3', isDark ? 'text-indigo-400' : 'text-indigo-600')} />
@@ -85,7 +87,7 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
             )}
             {showInvalid && (
               <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-black/60 backdrop-blur-sm"
-                style={{ height: design.size }}>
+                style={{ height: PREVIEW_SIZE }}>
                 <AlertCircle size={24} className="text-red-400 mb-2" />
                 <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-red-300 text-center px-4">
                   {validation.message}
@@ -94,7 +96,7 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
             )}
             {qrData.length > 2500 && (
               <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-amber-500/20 backdrop-blur-sm"
-                style={{ height: design.size }}>
+                style={{ height: PREVIEW_SIZE }}>
                 <AlertCircle size={24} className="text-amber-400 mb-2" />
                 <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-300 text-center px-4">
                   QR data too large ({Math.round(qrData.length / 1024)}KB)<br/>

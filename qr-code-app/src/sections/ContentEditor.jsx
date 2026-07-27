@@ -156,9 +156,9 @@ const SocialFields = memo(function SocialFields({ inputs, onChange }) {
     reader.onload = (event) => {
       const img = new window.Image();
       img.onload = () => {
-        // Compress to 64x64 with lower quality for QR compatibility
+        // Compress to 256x256 for a sharp and clear image stored in localStorage
         const canvas = document.createElement('canvas');
-        const targetSize = 64; // Smaller = less data
+        const targetSize = 256; 
         canvas.width = targetSize; 
         canvas.height = targetSize;
         const ctx = canvas.getContext('2d');
@@ -169,16 +169,16 @@ const SocialFields = memo(function SocialFields({ inputs, onChange }) {
         const y = (img.height - size) / 2;
         ctx.drawImage(img, x, y, size, size, 0, 0, targetSize, targetSize);
 
-        // Compress aggressively: JPEG quality 0.4
-        const b64 = canvas.toDataURL('image/jpeg', 0.4);
+        // Compress to JPEG with 0.8 quality
+        const b64 = canvas.toDataURL('image/jpeg', 0.8);
 
         // Check size - if still too big, compress more
         const sizeKB = Math.round(b64.length / 1024);
         setAvatarSize(sizeKB);
 
-        if (sizeKB > 8) {
-          // Re-compress with even lower quality
-          const b64Small = canvas.toDataURL('image/jpeg', 0.2);
+        if (sizeKB > 70) {
+          // Re-compress with lower quality if somehow still too big
+          const b64Small = canvas.toDataURL('image/jpeg', 0.5);
           setAvatarSize(Math.round(b64Small.length / 1024));
           onChange({ target: { name: 'socialAvatar', value: b64Small } });
         } else {
