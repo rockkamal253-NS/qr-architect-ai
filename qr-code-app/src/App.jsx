@@ -255,32 +255,18 @@ function AppInner() {
     store.addHistory(item);
   }, [store, qrData]);
 
-  // Requirement: Export filename with hash prefix, design.size SVG scaling & comment injection
+  // Requirement: Direct getRawData('svg', { width: design.size, height: design.size }) call for pure vector SVG
   const onDownload = useCallback(async (ext) => {
     const activeInstance = desktopInstance.current || mobileInstance.current;
     if (!activeInstance || scriptState !== 'ready') return;
     try {
       const fileName = `qr-${hashPrefix || '00000000'}`;
       if (ext === 'svg') {
-        let svgText = '';
-        try {
-          const rawBlob = await activeInstance.getRawData('svg');
-          svgText = await rawBlob.text();
-        } catch {
-          const svgInstance = new window.QRCodeStyling({
-            ...activeInstance._options,
-            width: store.design.size,
-            height: store.design.size,
-          });
-          const rawBlob = await svgInstance.getRawData('svg');
-          svgText = await rawBlob.text();
-        }
-
-        // Ensure SVG width and height attributes use design.size directly (independent of 2x raster bufferSize)
-        svgText = svgText
-          .replace(/(<svg[^>]*?\bwidth=")[^"]*"/i, `$1${store.design.size}"`)
-          .replace(/(<svg[^>]*?\bheight=")[^"]*"/i, `$1${store.design.size}"`);
-
+        const rawBlob = await activeInstance.getRawData('svg', {
+          width: store.design.size,
+          height: store.design.size,
+        });
+        const svgText = await rawBlob.text();
         const commentInjected = injectSvgHashComment(svgText, fullHash);
         const blob = new Blob([commentInjected], { type: 'image/svg+xml' });
         const link = document.createElement('a');
