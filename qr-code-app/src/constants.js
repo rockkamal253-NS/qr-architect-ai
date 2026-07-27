@@ -422,12 +422,65 @@ export const compressImage = (file, maxWidth = 96, quality = 0.6) => {
   });
 };
 
-/* ─── Avatar Storage (separate from QR payload) ─── */
+/* ─── Avatar Processing & Storage (512px High-DPI Engine) ─── */
+export const MAX_AVATAR_BLOB_SIZE = 400000; // 400KB limit for stored avatars
+
+export const compressAvatar = (file, targetSize = 512, initialQuality = 0.88) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const render = (dim, qual) => {
+          const canvas = document.createElement('canvas');
+          canvas.width = dim;
+          canvas.height = dim;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          const size = Math.min(img.width, img.height);
+          const x = (img.width - size) / 2;
+          const y = (img.height - size) / 2;
+          ctx.drawImage(img, x, y, size, size, 0, 0, dim, dim);
+          return canvas.toDataURL('image/jpeg', qual);
+        };
+
+        // Iterative quality reduction loop to guarantee size <= MAX_AVATAR_BLOB_SIZE
+        const qualities = [initialQuality, 0.75, 0.60, 0.45];
+        let result = '';
+
+        for (const q of qualities) {
+          result = render(targetSize, q);
+          if (result.length <= MAX_AVATAR_BLOB_SIZE) {
+            resolve(result);
+            return;
+          }
+        }
+
+        // Fallback to 384px if still oversized
+        for (const q of [0.75, 0.60, 0.45]) {
+          result = render(384, q);
+          if (result.length <= MAX_AVATAR_BLOB_SIZE) {
+            resolve(result);
+            return;
+          }
+        }
+
+        resolve(result);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 const AVATAR_PREFIX = 'qr:avatar:';
-const MAX_AVATAR_SIZE = 120000; // 120KB limit for stored avatars (fits 256x256 high quality)
 
 export const storeAvatar = (base64Image) => {
-  if (!base64Image || base64Image.length > MAX_AVATAR_SIZE * 2) {
+  if (!base64Image || base64Image.length > MAX_AVATAR_BLOB_SIZE * 1.5) {
     console.warn('Avatar too large, skipping storage');
     return '';
   }

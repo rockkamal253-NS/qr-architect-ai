@@ -4,6 +4,8 @@ import { useTheme } from '../hooks';
 import { Field, Pill, cx } from '../ui-components';
 import { TABS } from '../store';
 
+import { compressAvatar } from '../constants';
+
 const ICON_MAP = { Link, Type, UserSquare2, Mail, Wifi, Calendar, Bitcoin, Smartphone, Layers };
 
 // Tab field components
@@ -136,60 +138,30 @@ const SocialFields = memo(function SocialFields({ inputs, onChange }) {
 
   const [avatarSize, setAvatarSize] = useState(0);
 
-  const handleAvatarUpload = (e) => {
+  const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Please upload an image file');
       return;
     }
 
-    // Validate file size (max 5MB before compression)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image too large. Max 5MB before compression.');
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Image too large. Max 8MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new window.Image();
-      img.onload = () => {
-        // Compress to 256x256 for a sharp and clear image stored in localStorage
-        const canvas = document.createElement('canvas');
-        const targetSize = 256; 
-        canvas.width = targetSize; 
-        canvas.height = targetSize;
-        const ctx = canvas.getContext('2d');
-
-        // Center crop
-        const size = Math.min(img.width, img.height);
-        const x = (img.width - size) / 2;
-        const y = (img.height - size) / 2;
-        ctx.drawImage(img, x, y, size, size, 0, 0, targetSize, targetSize);
-
-        // Compress to JPEG with 0.8 quality
-        const b64 = canvas.toDataURL('image/jpeg', 0.8);
-
-        // Check size - if still too big, compress more
-        const sizeKB = Math.round(b64.length / 1024);
-        setAvatarSize(sizeKB);
-
-        if (sizeKB > 70) {
-          // Re-compress with lower quality if somehow still too big
-          const b64Small = canvas.toDataURL('image/jpeg', 0.5);
-          setAvatarSize(Math.round(b64Small.length / 1024));
-          onChange({ target: { name: 'socialAvatar', value: b64Small } });
-        } else {
-          onChange({ target: { name: 'socialAvatar', value: b64 } });
-        }
-      };
-      img.onerror = () => alert('Failed to load image');
-      img.src = event.target.result;
-    };
-    reader.onerror = () => alert('Failed to read file');
-    reader.readAsDataURL(file);
+    try {
+      const b64 = await compressAvatar(file, 512, 0.88);
+      const sizeKB = Math.round(b64.length / 1024);
+      console.log(`High-DPI Avatar processed: ${sizeKB}KB (512px target size)`);
+      setAvatarSize(sizeKB);
+      onChange({ target: { name: 'socialAvatar', value: b64 } });
+    } catch (err) {
+      console.error('Avatar processing failed:', err);
+      alert('Failed to process avatar photo');
+    }
   };
 
   return (
