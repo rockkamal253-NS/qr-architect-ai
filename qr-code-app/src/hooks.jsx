@@ -181,8 +181,12 @@ export function useQR({ scriptReady, data, design }) {
           canvas.classList.add('qr-canvas');
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            // Enable smooth scaling for logo overlays
-            ctx.imageSmoothingEnabled = true;
+            // Disable smoothing for sharp QR matrix blocks
+            ctx.imageSmoothingEnabled = false;
+            if (opts.image) {
+              // Enable smoothing only when drawing logo overlays
+              ctx.imageSmoothingEnabled = true;
+            }
           }
         }
 
