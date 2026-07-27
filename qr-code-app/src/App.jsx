@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { QrCode } from 'lucide-react';
 import { useStore, DEFAULT_INPUTS, DEFAULT_DESIGN } from './store';
 import { useScriptLoader, useQR, useToast, ToastProvider, useHotkeys, ThemeContext, useContentHash, useTheme } from './hooks.jsx';
-import { FORMATTERS, validate, encodeState, decodeState, uid, getInitialsSvg, getAvatar, computeSha256, injectSvgHashComment } from './constants.js';
+import { FORMATTERS, validate, encodeState, decodeState, uid, getInitialsSvg, getAvatar, computeSha256, injectSvgHashComment, compressLogo } from './constants.js';
 import { cx } from './ui-components.jsx';
 import { HeaderBar } from './sections/HeaderBar';
 import { AIEngine } from './sections/AIEngine';
@@ -228,19 +228,19 @@ function AppInner() {
     toast.info(`Applied "${p.name}" preset`);
   }, [store, toast]);
 
-  const onLogoUpload = useCallback((e) => {
+  const onLogoUpload = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Logo must be under 2MB');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    try {
+      toast.info('Optimizing logo...');
+      const { dataUrl } = await compressLogo(file);
       store.pushUndo();
-      store.setDesign('logoUrl', reader.result);
-    };
-    reader.readAsDataURL(file);
+      store.setDesign('logoUrl', dataUrl);
+      toast.success('Logo uploaded & optimized');
+    } catch (err) {
+      console.error('Logo processing failed:', err);
+      toast.error('Failed to process logo image');
+    }
   }, [store, toast]);
 
   const addToHistory = useCallback(() => {

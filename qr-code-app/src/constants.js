@@ -422,6 +422,93 @@ export const compressImage = (file, maxWidth = 96, quality = 0.6) => {
   });
 };
 
+/* ─── Smart Alpha-Aware Logo Compression (Remove 2MB Limit) ─── */
+const LOGO_MAX_DIM = 1024;
+const LOGO_MAX_BLOB_SIZE = 500 * 1024; // 500KB limit
+const JPEG_QUALITY_STEPS = [0.92, 0.80, 0.70];
+
+async function hasTransparency(canvas) {
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 255) return true;
+  }
+  return false;
+}
+
+export async function compressLogo(file) {
+  const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
+  img.src = objectUrl;
+
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+  });
+
+  let width = img.width;
+  let height = img.height;
+
+  // Downscale if larger than LOGO_MAX_DIM (1024px)
+  if (width > LOGO_MAX_DIM || height > LOGO_MAX_DIM) {
+    const ratio = Math.min(LOGO_MAX_DIM / width, LOGO_MAX_DIM / height);
+    width = Math.round(width * ratio);
+    height = Math.round(height * ratio);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // Transparency detection: preserve PNG alpha for transparent logos
+  const isPng = file.type === 'image/png' || file.type === 'image/webp' || file.type === 'image/svg+xml';
+  const hasAlpha = isPng && (await hasTransparency(canvas));
+
+  let dataUrl;
+
+  if (hasAlpha) {
+    dataUrl = canvas.toDataURL('image/png');
+    // If PNG dataUrl exceeds threshold, downscale to 800px max
+    if (dataUrl.length > LOGO_MAX_BLOB_SIZE * 1.37 && width > 800) {
+      const scale = 800 / Math.max(width, height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      canvas.width = width;
+      canvas.height = height;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+      dataUrl = canvas.toDataURL('image/png');
+    }
+  } else {
+    // Stepped JPEG quality reduction (0.92 -> 0.80 -> 0.70)
+    for (const quality of JPEG_QUALITY_STEPS) {
+      dataUrl = canvas.toDataURL('image/jpeg', quality);
+      if (dataUrl.length <= LOGO_MAX_BLOB_SIZE * 1.37) break;
+    }
+    // Final fallback: 800px max + quality 0.70 if still oversized
+    if (dataUrl.length > LOGO_MAX_BLOB_SIZE * 1.37 && (width > 800 || height > 800)) {
+      const scale = 800 / Math.max(width, height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      canvas.width = width;
+      canvas.height = height;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+      dataUrl = canvas.toDataURL('image/jpeg', 0.70);
+    }
+  }
+
+  URL.revokeObjectURL(objectUrl);
+  return { dataUrl, width, height };
+}
+
 /* ─── Avatar Processing & Storage (512px High-DPI Engine) ─── */
 export const MAX_AVATAR_BLOB_SIZE = 400000; // 400KB limit for stored avatars
 

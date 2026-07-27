@@ -1,6 +1,6 @@
 import { memo, useState, useRef, useEffect } from 'react';
 import { ScanLine, Download, Copy, Check, AlertCircle, Loader2, ChevronDown, FileImage, Layers, Share2 } from 'lucide-react';
-import { useTheme, useAutoScale } from '../hooks';
+import { useTheme, useAutoScale, useScanTest } from '../hooks';
 import { cx } from '../ui-components';
 
 const PREVIEW_SIZE = 280;
@@ -48,6 +48,9 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
   const currentBuffer = bufferSize || Math.max(800, (design.size || 300) * 2);
   const { scale: autoScale } = useAutoScale(containerRef, currentBuffer, currentBuffer);
   const scale = autoScale || (PREVIEW_SIZE / currentBuffer);
+
+  // Requirement: Live Scan-Test Badge with BarcodeDetector & jsQR fallback
+  const scanStatus = useScanTest(qrRef, [design.size, design.logoUrl, design.dotsColor, design.backgroundColor, qrData]);
 
   const rasterResText = `PNG/JPEG/WebP: Export at ${design.size * 2} × ${design.size * 2} px (2× Ultra HD)`;
   const svgResText = `SVG: infinite vector scaling (at ${design.size} pt)`;
@@ -121,12 +124,31 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
             )}
           </PreviewFrame>
 
-          <div className="mt-5 space-y-1.5 text-center">
+          <div className="mt-5 space-y-1 text-center">
             <div className={cx('text-[11px] font-mono font-medium', isDark ? 'text-slate-300' : 'text-slate-700')}>
               {rasterResText}
             </div>
             <div className={cx('text-[10px] font-mono opacity-60', textDim)}>
               {svgResText}
+            </div>
+
+            {/* Live Scan-Test Badge */}
+            <div className="pt-2 flex items-center justify-center">
+              {scanStatus === 'success' && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm toast-in">
+                  <span>✅</span> Scannable – ready to print
+                </span>
+              )}
+              {scanStatus === 'warning' && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm toast-in">
+                  <span>⚠️</span> Could not verify – test with phone camera
+                </span>
+              )}
+              {scanStatus === null && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium text-slate-400 bg-white/5 border border-white/10">
+                  <Loader2 size={12} className="animate-spin text-indigo-400" /> Checking scannability…
+                </span>
+              )}
             </div>
           </div>
 

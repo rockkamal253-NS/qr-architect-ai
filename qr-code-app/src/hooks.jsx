@@ -3,9 +3,75 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from 'react';
+import jsQR from 'jsqr';
 import { debounce, computeSha256 } from './constants';
 
 const CDN_URL = 'https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
+
+const SCAN_RES = 400;
+const SCAN_DEBOUNCE = 500;
+
+/* ─── Live Scannability Indicator Hook (BarcodeDetector + jsQR Fallback) ─── */
+export function useScanTest(containerRef, deps = []) {
+  const [status, setStatus] = useState(null);
+  const timer = useRef(null);
+
+  useEffect(() => {
+    setStatus(null);
+    clearTimeout(timer.current);
+
+    timer.current = setTimeout(async () => {
+      const container = containerRef.current;
+      if (!container) return;
+      const sourceCanvas = container.querySelector('canvas');
+      if (!sourceCanvas || sourceCanvas.width === 0) return;
+
+      const scanCanvas = document.createElement('canvas');
+      scanCanvas.width = SCAN_RES;
+      scanCanvas.height = SCAN_RES;
+      const ctx = scanCanvas.getContext('2d');
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, SCAN_RES, SCAN_RES);
+      ctx.drawImage(sourceCanvas, 0, 0, SCAN_RES, SCAN_RES);
+
+      let detected = false;
+
+      // 1. Try native BarcodeDetector API (pass scanCanvas element directly)
+      if ('BarcodeDetector' in window) {
+        try {
+          const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+          const results = await detector.detect(scanCanvas);
+          if (results && results.length > 0) {
+            detected = true;
+          }
+        } catch (e) {
+          // Fall through to jsQR fallback
+        }
+      }
+
+      // 2. CPU fallback with jsQR
+      if (!detected) {
+        try {
+          const imageData = ctx.getImageData(0, 0, SCAN_RES, SCAN_RES);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert',
+          });
+          if (code) detected = true;
+        } catch (e) {
+          console.warn('jsQR scan failed:', e);
+        }
+      }
+
+      setStatus(detected ? 'success' : 'warning');
+    }, SCAN_DEBOUNCE);
+
+    return () => clearTimeout(timer.current);
+  }, [containerRef, ...deps]);
+
+  return status;
+}
 
 /* ─── Content Hashing Hook (Debounced at ~280ms) ─── */
 export function useContentHash(qrData, delay = 280) {
