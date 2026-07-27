@@ -237,9 +237,7 @@ input[type="color"]::-moz-color-swatch { border: none; border-radius: 6px; }
   body { background: white !important; }
 }
 
-/* Ensure the preview canvas and SVG scale to fit the container */
-#preview-qr-container canvas, #preview-qr-container svg {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: contain;
+/* Profile image preview: prefer image-rendering: auto over crisp-edges for smooth downscaled high-DPI images */
+img, .avatar-preview {
+  image-rendering: auto;
 }

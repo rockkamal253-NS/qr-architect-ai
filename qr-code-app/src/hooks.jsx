@@ -3,9 +3,33 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { useState, useEffect, useRef, useCallback, useMemo, createContext, useContext } from 'react';
-import { debounce } from './constants';
+import { debounce, computeSha256 } from './constants';
 
 const CDN_URL = 'https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
+
+/* ─── Content Hashing Hook (Debounced at ~280ms) ─── */
+export function useContentHash(qrData, delay = 280) {
+  const [hashData, setHashData] = useState({ fullHash: '', hashPrefix: '00000000', loading: false });
+
+  useEffect(() => {
+    let isCurrent = true;
+    setHashData(prev => ({ ...prev, loading: true }));
+
+    const timer = setTimeout(async () => {
+      const { fullHash, prefix } = await computeSha256(qrData);
+      if (isCurrent) {
+        setHashData({ fullHash, hashPrefix: prefix, loading: false });
+      }
+    }, delay);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [qrData, delay]);
+
+  return hashData;
+}
 
 /* ─── Script Loader with retry ─── */
 export function useScriptLoader(src, globalName, maxRetries = 2) {
@@ -65,17 +89,21 @@ export function useQR({ scriptReady, data, design }) {
   const [ready, setReady] = useState(false);
   const designRef = useRef(design);
 
-  // Keep design ref current for comparison
   useEffect(() => { designRef.current = design; }, [design]);
 
+  // Requirement: Explicit buffer size (2x resolution for 2x Ultra HD rendering)
+  const bufferSize = useMemo(() => Math.max(600, (design.size || 300) * 2), [design.size]);
+  const proportionalMargin = useMemo(() => Math.round((design.margin || 12) * (bufferSize / Math.max(1, design.size || 300))), [design.margin, design.size, bufferSize]);
+  const logoMargin = useMemo(() => Math.round(12 * (bufferSize / 600)), [bufferSize]);
+
   const options = useMemo(() => ({
-    width: design.size,
-    height: design.size,
+    width: bufferSize,
+    height: bufferSize,
     data: data || ' ',
-    margin: design.margin,
+    margin: proportionalMargin,
     image: design.logoUrl || undefined,
     qrOptions: { typeNumber: 0, mode: 'Byte', errorCorrectionLevel: 'H' },
-    imageOptions: { hideBackgroundDots: true, imageSize: 0.38, margin: 8 },
+    imageOptions: { hideBackgroundDots: true, imageSize: 0.38, margin: logoMargin },
     dotsOptions: {
       type: design.dotsType,
       ...(design.isGradient
@@ -93,18 +121,16 @@ export function useQR({ scriptReady, data, design }) {
     backgroundOptions: { color: design.backgroundColor },
     cornersSquareOptions: { type: design.cornersSquareType, color: design.cornersSquareColor },
     cornersDotOptions: { type: design.cornersDotType, color: design.cornersDotColor },
-  }), [data, design]);
+  }), [data, design, bufferSize, proportionalMargin, logoMargin]);
 
-  // Debounced QR update to prevent excessive re-renders
+  // Debounced QR update
   const debouncedUpdate = useMemo(
     () => debounce((opts) => {
       if (!window.QRCodeStyling || !containerRef.current) return;
 
-      // Check if data is too large for QR code
       const dataSize = opts.data?.length || 0;
       if (dataSize > 3000) {
-        console.warn(`QR data too large: ${dataSize} chars (max ~3000)`);
-        // Show error state but don't crash
+        console.warn(`QR data too large: ${dataSize} chars`);
         containerRef.current.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;color:#f87171;font-family:monospace;font-size:11px;text-align:center;padding:20px;">
             <div style="margin-bottom:8px;">⚠️</div>
@@ -122,6 +148,16 @@ export function useQR({ scriptReady, data, design }) {
         const instance = new window.QRCodeStyling(opts);
         instance.append(containerRef.current);
         instanceRef.current = instance;
+
+        // Requirement: Toggle imageSmoothingEnabled so logo overlay remains smooth
+        const canvas = containerRef.current.querySelector('canvas');
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+          }
+        }
+
         setReady(true);
       } catch (e) {
         console.error('QR render failed:', e);
@@ -137,7 +173,7 @@ export function useQR({ scriptReady, data, design }) {
     return () => debouncedUpdate.cancel?.();
   }, [options, scriptReady, debouncedUpdate]);
 
-  return { containerRef, instance: instanceRef, ready };
+  return { containerRef, instance: instanceRef, ready, bufferSize };
 }
 
 /* ─── Toast System ─── */

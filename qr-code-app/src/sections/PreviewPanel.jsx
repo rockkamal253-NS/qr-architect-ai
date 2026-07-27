@@ -28,7 +28,7 @@ const PreviewFrame = memo(function PreviewFrame({ children, design }) {
   );
 });
 
-export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validation, scriptState, qrRef, onDownload, onCopy, copyState }) {
+export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validation, scriptState, qrRef, onDownload, onCopy, copyState, bufferSize = 600, hashPrefix = '00000000', onVerifyOpen }) {
   const { isDark, glass, glassSoft, borderSoft, textDim, textMuted } = useTheme();
   const [exportMenu, setExportMenu] = useState(false);
   const menuRef = useRef(null);
@@ -44,6 +44,12 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
   const showInvalid = scriptState === 'ready' && validation.state === 'invalid';
   const showScan = scriptState === 'ready' && !showInvalid;
 
+  const currentBuffer = bufferSize || Math.max(600, (design.size || 300) * 2);
+  const scale = PREVIEW_SIZE / currentBuffer;
+
+  const rasterResText = `Export: ${design.size * 2} × ${design.size * 2} px (2× Ultra HD)`;
+  const svgResText = `SVG: infinite vector scaling (at ${design.size} pt)`;
+
   return (
     <>
       <div className={cx('rounded-3xl border grain overflow-hidden', glass)}>
@@ -52,15 +58,32 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
             <ScanLine size={14} className={isDark ? 'text-indigo-400' : 'text-indigo-600'} />
             <span className="text-[10px] font-mono uppercase tracking-[0.2em]">Live Preview</span>
           </div>
-          <span className={cx('text-[10px] font-mono', textDim)}>
-            {qrData.length} chars · ECC H · {design.size}px
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              #{hashPrefix}
+            </span>
+            <span className={cx('text-[10px] font-mono', textDim)}>
+              ECC H
+            </span>
+          </div>
         </div>
 
         <div className="p-6">
           <PreviewFrame design={design}>
-            <div ref={qrRef} id="preview-qr-container" className="rounded-2xl overflow-hidden shadow-2xl relative"
-              style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE, backgroundColor: design.backgroundColor }} />
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl mx-auto" style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}>
+              <div
+                ref={qrRef}
+                id="preview-qr-container"
+                className="absolute top-0 left-0"
+                style={{
+                  width: currentBuffer,
+                  height: currentBuffer,
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                  backgroundColor: design.backgroundColor,
+                }}
+              />
+            </div>
             {showScan && (
               <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none"
                 style={{ height: PREVIEW_SIZE }}>
@@ -94,34 +117,26 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
                 </span>
               </div>
             )}
-            {qrData.length > 2500 && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-amber-500/20 backdrop-blur-sm"
-                style={{ height: PREVIEW_SIZE }}>
-                <AlertCircle size={24} className="text-amber-400 mb-2" />
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-300 text-center px-4">
-                  QR data too large ({Math.round(qrData.length / 1024)}KB)<br/>
-                  Remove avatar or reduce text
-                </span>
-              </div>
-            )}
           </PreviewFrame>
 
-          <div className={cx('mt-5 rounded-xl border px-3 py-2 max-h-20 overflow-y-auto no-scrollbar', borderSoft, glassSoft)}>
-            <span className={cx('text-[10px] font-mono uppercase tracking-[0.2em]', textDim)}>Payload</span>
-            <p className="text-[11px] font-mono break-all mt-1 leading-relaxed">
-              {qrData.length > 140 ? qrData.slice(0, 140) + '…' : qrData}
-            </p>
+          <div className="mt-5 space-y-1.5 text-center">
+            <div className={cx('text-[11px] font-mono font-medium', isDark ? 'text-slate-300' : 'text-slate-700')}>
+              {rasterResText}
+            </div>
+            <div className={cx('text-[10px] font-mono opacity-60', textDim)}>
+              {svgResText}
+            </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <div ref={menuRef} className="col-span-2 relative">
+          <div className="mt-5 grid grid-cols-1 gap-2.5">
+            <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setExportMenu(v => !v)}
                 disabled={scriptState !== 'ready'}
                 className="w-full h-12 rounded-xl font-semibold text-sm overflow-hidden bg-gradient-to-r from-indigo-500 to-pink-500 text-white shadow-lg shadow-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-pink-500/40 transition-all"
               >
                 <span className="flex items-center justify-center gap-2">
-                  <Download size={16} /> Download
+                  <Download size={16} /> Download ({`qr-${hashPrefix}`})
                   <ChevronDown size={14} className={cx('transition-transform', exportMenu && 'rotate-180')} />
                 </span>
               </button>
@@ -129,10 +144,10 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
                 <div className={cx('absolute left-0 right-0 top-full mt-2 rounded-xl border shadow-2xl overflow-hidden z-10 toast-in',
                   isDark ? 'bg-[#0d1028] border-white/10' : 'bg-white border-slate-200')}>
                   {[
-                    { ext: 'png', label: 'PNG', hint: 'Raster · universal' },
-                    { ext: 'svg', label: 'SVG', hint: 'Vector · infinite scale' },
-                    { ext: 'jpeg', label: 'JPEG', hint: 'Smaller file size' },
-                    { ext: 'webp', label: 'WebP', hint: 'Modern · optimised' },
+                    { ext: 'png', label: 'PNG', hint: `${design.size * 2}px · 2× Ultra HD` },
+                    { ext: 'svg', label: 'SVG', hint: `Infinite vector (${design.size}pt)` },
+                    { ext: 'jpeg', label: 'JPEG', hint: `${design.size * 2}px · Compact` },
+                    { ext: 'webp', label: 'WebP', hint: `${design.size * 2}px · Web` },
                   ].map(opt => (
                     <button
                       key={opt.ext}
@@ -151,28 +166,29 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
               )}
             </div>
 
-            <button
-              onClick={onCopy}
-              disabled={scriptState !== 'ready' || copyState === 'copying'}
-              className={cx('h-11 rounded-xl font-medium text-sm border-2 flex items-center justify-center gap-2 transition disabled:opacity-50',
-                copyState === 'copied' ? (isDark ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : 'border-emerald-500 bg-emerald-50 text-emerald-700')
-                  : copyState === 'error' ? (isDark ? 'border-red-500/40 bg-red-500/10 text-red-300' : 'border-red-500 bg-red-50 text-red-700')
-                    : (isDark ? cx(borderSoft, 'hover:bg-white/5') : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400 hover:bg-slate-50')
-              )}
-            >
-              {copyState === 'copying' && <><Loader2 size={15} className="animate-spin" /> Copying</>}
-              {copyState === 'copied' && <><Check size={15} /> Copied</>}
-              {copyState === 'error' && <><AlertCircle size={15} /> Failed</>}
-              {copyState === 'idle' && <><Copy size={15} /> Copy ⌘⇧C</>}
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={onCopy}
+                disabled={scriptState !== 'ready' || copyState === 'copying'}
+                className={cx('h-11 rounded-xl font-medium text-xs border flex items-center justify-center gap-1.5 transition disabled:opacity-50',
+                  copyState === 'copied' ? (isDark ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300' : 'border-emerald-500 bg-emerald-50 text-emerald-700')
+                    : copyState === 'error' ? (isDark ? 'border-red-500/40 bg-red-500/10 text-red-300' : 'border-red-500 bg-red-50 text-red-700')
+                      : (isDark ? cx(borderSoft, 'hover:bg-white/5') : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400 hover:bg-slate-50')
+                )}
+              >
+                {copyState === 'copying' && <><Loader2 size={14} className="animate-spin" /> Copying</>}
+                {copyState === 'copied' && <><Check size={14} /> Copied</>}
+                {copyState === 'error' && <><AlertCircle size={14} /> Failed</>}
+                {copyState === 'idle' && <><Copy size={14} /> Copy</>}
+              </button>
 
-            <button
-              onClick={() => onDownload('svg')}
-              disabled={scriptState !== 'ready'}
-              className={cx('h-11 rounded-xl font-medium text-sm border-2 flex items-center justify-center gap-2 disabled:opacity-50 transition',
-                isDark ? cx(borderSoft, 'hover:bg-white/5') : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400 hover:bg-slate-50')}>
-              <Layers size={15} /> Quick SVG
-            </button>
+              <button
+                onClick={onVerifyOpen}
+                className={cx('h-11 rounded-xl font-medium text-xs border flex items-center justify-center gap-1.5 transition',
+                  isDark ? cx(borderSoft, 'hover:bg-white/5 text-indigo-300') : 'bg-white border-slate-300 text-indigo-600 hover:border-slate-400 hover:bg-slate-50')}>
+                <Check size={14} /> Verify Hash
+              </button>
+            </div>
           </div>
         </div>
       </div>

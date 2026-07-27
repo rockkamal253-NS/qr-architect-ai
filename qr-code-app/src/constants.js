@@ -351,6 +351,30 @@ export const decodeState = (hash) => {
   try { return JSON.parse(decodeURIComponent(atob(hash))); } catch { return null; }
 };
 
+/* ─── SHA-256 Hashing & NFC Normalization ─── */
+export const computeSha256 = async (rawInput) => {
+  if (!rawInput) return { fullHash: '', prefix: '00000000' };
+  try {
+    const normalized = String(rawInput).normalize('NFC');
+    const encoder = new TextEncoder();
+    const data = encoder.encode(normalized);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const fullHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const prefix = fullHash.slice(0, 8).replace(/[^a-z0-9]/gi, '0');
+    return { fullHash, prefix };
+  } catch (e) {
+    console.error('SHA-256 computation failed:', e);
+    return { fullHash: '', prefix: '00000000' };
+  }
+};
+
+export const injectSvgHashComment = (svgText, fullHash) => {
+  if (!svgText || !fullHash) return svgText;
+  const comment = `<!-- hash: ${fullHash} -->\n`;
+  return svgText.replace(/(<svg[^>]*>)/i, `$1\n${comment}`);
+};
+
 /* ─── Utility ─── */
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { QrCode } from 'lucide-react';
 import { useStore, DEFAULT_INPUTS, DEFAULT_DESIGN } from './store';
-import { useScriptLoader, useQR, useToast, ToastProvider, useHotkeys, ThemeContext } from './hooks.jsx';
-import { FORMATTERS, validate, encodeState, decodeState, uid, getInitialsSvg, getAvatar } from './constants.js';
+import { useScriptLoader, useQR, useToast, ToastProvider, useHotkeys, ThemeContext, useContentHash } from './hooks.jsx';
+import { FORMATTERS, validate, encodeState, decodeState, uid, getInitialsSvg, getAvatar, computeSha256, injectSvgHashComment } from './constants.js';
 import { cx } from './ui-components.jsx';
 import { HeaderBar } from './sections/HeaderBar';
 import { AIEngine } from './sections/AIEngine';
@@ -13,6 +13,91 @@ import { PreviewPanel } from './sections/PreviewPanel';
 import { HistoryDrawer } from './sections/HistoryDrawer';
 
 const CDN_URL = 'https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
+
+/* ─── Verification Modal (Full 64-character SHA-256 Hash Comparison) ─── */
+function VerificationModal({ open, onClose, currentHash, currentPrefix }) {
+  const { isDark, textDim } = useTheme();
+  const [scannedInput, setScannedInput] = useState('');
+  const [scannedResult, setScannedResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const onVerify = useCallback(async () => {
+    if (!scannedInput.trim()) return;
+    setLoading(true);
+    const { fullHash, prefix } = await computeSha256(scannedInput.trim());
+    const isMatch = fullHash.length > 0 && fullHash === currentHash;
+    setScannedResult({ fullHash, prefix, isMatch });
+    setLoading(false);
+  }, [scannedInput, currentHash]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm toast-in">
+      <div className={cx('w-full max-w-lg rounded-3xl border p-6 shadow-2xl relative space-y-5',
+        isDark ? 'bg-[#0b0f1e] border-white/10 text-slate-100' : 'bg-white border-slate-300 text-slate-900')}>
+        
+        <div className="flex items-center justify-between border-b pb-4 border-slate-700/40">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold">Integrity Verification</span>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 text-slate-400">✕</button>
+        </div>
+
+        <div className="space-y-4 text-xs">
+          <div>
+            <label className={cx('text-[10px] font-mono uppercase tracking-[0.2em] block mb-1', textDim)}>Target Hash Prefix</label>
+            <span className="font-mono text-xs px-2.5 py-1 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">
+              #{currentPrefix}
+            </span>
+          </div>
+
+          <div>
+            <label className={cx('text-[10px] font-mono uppercase tracking-[0.2em] block mb-1', textDim)}>Full SHA-256 Fingerprint (64 chars)</label>
+            <div className="p-2.5 rounded-xl border bg-black/30 font-mono text-[11px] break-all border-white/10 text-slate-300">
+              {currentHash || 'Computing hash…'}
+            </div>
+          </div>
+
+          <div>
+            <label className={cx('text-[10px] font-mono uppercase tracking-[0.2em] block mb-1', textDim)}>Paste Scanned Content / Payload</label>
+            <textarea
+              rows={3}
+              value={scannedInput}
+              onChange={(e) => setScannedInput(e.target.value)}
+              placeholder="Paste exact scanned QR code text or URL to verify integrity..."
+              className={cx('w-full rounded-xl border p-3 font-mono text-xs outline-none transition',
+                isDark ? 'bg-white/5 border-white/10 text-slate-100 placeholder:text-slate-500 focus:border-indigo-400'
+                  : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500')}
+            />
+          </div>
+
+          <button
+            onClick={onVerify}
+            disabled={loading || !scannedInput.trim()}
+            className="w-full py-2.5 rounded-xl font-semibold text-xs bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 transition shadow-md"
+          >
+            {loading ? 'Computing Hash…' : 'Verify SHA-256 Hash Integrity'}
+          </button>
+
+          {scannedResult && (
+            <div className={cx('p-4 rounded-2xl border toast-in space-y-2',
+              scannedResult.isMatch
+                ? (isDark ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' : 'bg-emerald-50 border-emerald-300 text-emerald-800')
+                : (isDark ? 'bg-red-950/40 border-red-500/30 text-red-300' : 'bg-red-50 border-red-300 text-red-800'))}>
+              <div className="flex items-center gap-2 font-semibold">
+                {scannedResult.isMatch ? '✅ INTEGRITY VERIFIED (100% Match)' : '❌ HASH MISMATCH (Content differs)'}
+              </div>
+              <div className="font-mono text-[10px] break-all opacity-90">
+                Scanned: {scannedResult.fullHash}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ─── Bio Viewer (for social profile QR scans) ─── */
 function BioViewer({ hash }) {
@@ -77,10 +162,14 @@ function AppInner() {
   const [copyState, setCopyState] = useState('idle');
   const [historyOpen, setHistoryOpen] = useState(false);
 
+  const [verifyOpen, setVerifyOpen] = useState(false);
   const scriptState = useScriptLoader(CDN_URL, 'QRCodeStyling');
 
   const qrData = useMemo(() => FORMATTERS[store.activeTab](store.inputs), [store.activeTab, store.inputs]);
   const validation = useMemo(() => validate[store.activeTab](store.inputs), [store.activeTab, store.inputs]);
+
+  // Requirement: Debounced SHA-256 Content Hash over NFC-normalized string payload
+  const { fullHash, hashPrefix } = useContentHash(qrData, 280);
 
   const effectiveDesign = useMemo(() => {
     if (store.activeTab === 'vcard' && !store.design.logoUrl) {
@@ -89,7 +178,7 @@ function AppInner() {
     return store.design;
   }, [store.design, store.activeTab, store.inputs.firstName, store.inputs.lastName]);
 
-  const { containerRef: desktopContainerRef, instance: desktopInstance } = useQR({ 
+  const { containerRef: desktopContainerRef, instance: desktopInstance, bufferSize: desktopBufferSize } = useQR({ 
     scriptReady: scriptState === 'ready', 
     data: qrData, 
     design: effectiveDesign 
@@ -160,19 +249,36 @@ function AppInner() {
     store.addHistory(item);
   }, [store, qrData]);
 
-  const onDownload = useCallback((ext) => {
+  // Requirement: Export filename with hash prefix & SVG comment injection
+  const onDownload = useCallback(async (ext) => {
     const activeInstance = desktopInstance.current || mobileInstance.current;
     if (!activeInstance || scriptState !== 'ready') return;
     try {
-      activeInstance.download({ extension: ext, name: `qr-architect-${Date.now()}` });
+      const fileName = `qr-${hashPrefix || '00000000'}`;
+      if (ext === 'svg' && activeInstance.getRawData) {
+        try {
+          const rawBlob = await activeInstance.getRawData('svg');
+          const svgText = await rawBlob.text();
+          const commentInjected = injectSvgHashComment(svgText, fullHash);
+          const blob = new Blob([commentInjected], { type: 'image/svg+xml' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `${fileName}.svg`;
+          link.click();
+        } catch {
+          activeInstance.download({ extension: 'svg', name: fileName });
+        }
+      } else {
+        activeInstance.download({ extension: ext, name: fileName });
+      }
       addToHistory();
       store.incrementStats();
-      toast.success(`Exported as ${ext.toUpperCase()}`);
+      toast.success(`Exported as ${ext.toUpperCase()} (${fileName})`);
     } catch (err) {
       toast.error('Export failed');
       console.error(err);
     }
-  }, [desktopInstance, mobileInstance, scriptState, toast, addToHistory, store]);
+  }, [desktopInstance, mobileInstance, scriptState, hashPrefix, fullHash, toast, addToHistory, store]);
 
   const onCopy = useCallback(async () => {
     const activeInstance = desktopInstance.current || mobileInstance.current;
@@ -372,9 +478,12 @@ function AppInner() {
                 validation={validation}
                 scriptState={scriptState}
                 qrRef={desktopContainerRef}
+                bufferSize={desktopBufferSize}
+                hashPrefix={hashPrefix}
                 onDownload={onDownload}
                 onCopy={onCopy}
                 copyState={copyState}
+                onVerifyOpen={() => setVerifyOpen(true)}
               />
             </aside>
           </div>
@@ -394,6 +503,13 @@ function AppInner() {
           history={store.history}
           onRestore={store.restoreFromHistory}
           onClear={() => { store.clearHistory(); toast.info('History cleared'); }}
+        />
+
+        <VerificationModal
+          open={verifyOpen}
+          onClose={() => setVerifyOpen(false)}
+          currentHash={fullHash}
+          currentPrefix={hashPrefix}
         />
       </div>
 
@@ -416,9 +532,12 @@ function AppInner() {
           validation={validation}
           scriptState={scriptState}
           qrRef={mobileContainerRef}
+          bufferSize={desktopBufferSize}
+          hashPrefix={hashPrefix}
           onDownload={onDownload}
           onCopy={onCopy}
           copyState={copyState}
+          onVerifyOpen={() => setVerifyOpen(true)}
         />
       </div>
     </ThemeContext.Provider>
