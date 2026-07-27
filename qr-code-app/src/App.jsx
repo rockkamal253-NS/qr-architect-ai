@@ -262,11 +262,18 @@ function AppInner() {
     try {
       const fileName = `qr-${hashPrefix || '00000000'}`;
       if (ext === 'svg') {
+        const targetSize = store.design.size || 300;
         const rawBlob = await activeInstance.getRawData('svg', {
-          width: store.design.size,
-          height: store.design.size,
+          width: targetSize,
+          height: targetSize,
         });
-        const svgText = await rawBlob.text();
+        let svgText = await rawBlob.text();
+
+        // Guaranteed design.size attributes on root <svg> element (independent of 2x raster buffer)
+        svgText = svgText
+          .replace(/(<svg[^>]*?\bwidth=")[^"]*"/i, `$1${targetSize}"`)
+          .replace(/(<svg[^>]*?\bheight=")[^"]*"/i, `$1${targetSize}"`);
+
         const commentInjected = injectSvgHashComment(svgText, fullHash);
         const blob = new Blob([commentInjected], { type: 'image/svg+xml' });
         const link = document.createElement('a');
