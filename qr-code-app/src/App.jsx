@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { QrCode } from 'lucide-react';
 import { useStore, DEFAULT_INPUTS, DEFAULT_DESIGN } from './store';
-import { useScriptLoader, useQR, useToast, ToastProvider, useHotkeys, ThemeContext, useContentHash } from './hooks.jsx';
+import { useScriptLoader, useQR, useToast, ToastProvider, useHotkeys, ThemeContext, useContentHash, useTheme } from './hooks.jsx';
 import { FORMATTERS, validate, encodeState, decodeState, uid, getInitialsSvg, getAvatar, computeSha256, injectSvgHashComment } from './constants.js';
 import { cx } from './ui-components.jsx';
 import { HeaderBar } from './sections/HeaderBar';
