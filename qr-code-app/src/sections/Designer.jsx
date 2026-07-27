@@ -19,7 +19,7 @@ export const Designer = memo(function Designer({ design, onDesignChange, onApply
         </div>
       </div>
 
-      <div className="p-8 space-y-8">
+      <div className="p-6 space-y-6">
         <div>
           <label className={cx('text-[10px] font-mono uppercase tracking-[0.2em] mb-3 block', textDim)}>Presets</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">

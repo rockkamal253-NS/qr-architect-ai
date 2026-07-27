@@ -73,6 +73,7 @@ function AppInner() {
   const store = useStore();
   const toast = useToast();
   const aiInputRef = useRef(null);
+  const [workspaceMode, setWorkspaceMode] = useState('content'); // 'content' | 'design' | 'ai'
   const [copyState, setCopyState] = useState('idle');
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -290,28 +291,78 @@ function AppInner() {
 
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             <div className="xl:col-span-8 space-y-6">
-              <AIEngine
-                design={store.design}
-                onPromptChange={(v) => store.setDesign('aiPrompt', v)}
-                onApplyPatch={store.applyAIPatch}
-                aiState={store.aiState}
-                setAIState={store.setAIState}
-                inputRef={aiInputRef}
-              />
-              <TabBar activeTab={store.activeTab} onChange={store.setTab} />
-              <ContentEditor
-                activeTab={store.activeTab}
-                inputs={store.inputs}
-                onInputChange={onInputChange}
-                validation={validation}
-                qrLen={qrData.length}
-              />
-              <Designer
-                design={store.design}
-                onDesignChange={onDesignChange}
-                onApplyPreset={onApplyPreset}
-                onLogoUpload={onLogoUpload}
-              />
+              {/* Workspace Mode Switcher */}
+              <div className={cx(
+                "p-1.5 rounded-2xl border backdrop-blur-xl flex items-center gap-1.5 transition-all shadow-md",
+                store.isDark ? "bg-white/[0.04] border-white/10" : "bg-white/90 border-slate-300"
+              )}>
+                <button
+                  onClick={() => setWorkspaceMode('content')}
+                  className={cx(
+                    'flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all',
+                    workspaceMode === 'content'
+                      ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                      : store.isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-white/5' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  )}
+                >
+                  <span>📝 Content & Data</span>
+                </button>
+                <button
+                  onClick={() => setWorkspaceMode('design')}
+                  className={cx(
+                    'flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all',
+                    workspaceMode === 'design'
+                      ? 'bg-gradient-to-r from-indigo-500 to-pink-500 text-white shadow-md shadow-pink-500/20'
+                      : store.isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-white/5' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  )}
+                >
+                  <span>🎨 Visual Designer</span>
+                </button>
+                <button
+                  onClick={() => setWorkspaceMode('ai')}
+                  className={cx(
+                    'flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all',
+                    workspaceMode === 'ai'
+                      ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md shadow-purple-500/20'
+                      : store.isDark ? 'text-slate-400 hover:text-slate-200 hover:bg-white/5' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  )}
+                >
+                  <span>🪄 AI Assistant</span>
+                </button>
+              </div>
+
+              {workspaceMode === 'content' && (
+                <>
+                  <TabBar activeTab={store.activeTab} onChange={store.setTab} />
+                  <ContentEditor
+                    activeTab={store.activeTab}
+                    inputs={store.inputs}
+                    onInputChange={onInputChange}
+                    validation={validation}
+                    qrLen={qrData.length}
+                  />
+                </>
+              )}
+
+              {workspaceMode === 'design' && (
+                <Designer
+                  design={store.design}
+                  onDesignChange={onDesignChange}
+                  onApplyPreset={onApplyPreset}
+                  onLogoUpload={onLogoUpload}
+                />
+              )}
+
+              {workspaceMode === 'ai' && (
+                <AIEngine
+                  design={store.design}
+                  onPromptChange={(v) => store.setDesign('aiPrompt', v)}
+                  onApplyPatch={store.applyAIPatch}
+                  aiState={store.aiState}
+                  setAIState={store.setAIState}
+                  inputRef={aiInputRef}
+                />
+              )}
             </div>
 
             <aside className="hidden xl:block xl:col-span-4 xl:sticky xl:top-24 xl:self-start space-y-4">
