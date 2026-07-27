@@ -255,7 +255,7 @@ function AppInner() {
     store.addHistory(item);
   }, [store, qrData]);
 
-  // Requirement: Direct getRawData('svg', { width: design.size, height: design.size }) call for pure vector SVG
+  // Requirement: Dedicated SVG QRCodeStyling instance to guarantee all 3 corner patterns are unclipped & fully visible
   const onDownload = useCallback(async (ext) => {
     const activeInstance = desktopInstance.current || mobileInstance.current;
     if (!activeInstance || scriptState !== 'ready') return;
@@ -263,16 +263,39 @@ function AppInner() {
       const fileName = `qr-${hashPrefix || '00000000'}`;
       if (ext === 'svg') {
         const targetSize = store.design.size || 300;
-        const rawBlob = await activeInstance.getRawData('svg', {
+        const targetMargin = store.design.margin || 12;
+
+        // Instantiate dedicated SVG generator with matched targetSize and targetMargin
+        const svgOptions = {
           width: targetSize,
           height: targetSize,
-        });
-        let svgText = await rawBlob.text();
+          data: qrData || ' ',
+          margin: targetMargin,
+          image: store.design.logoUrl || undefined,
+          qrOptions: { typeNumber: 0, mode: 'Byte', errorCorrectionLevel: 'H' },
+          imageOptions: { hideBackgroundDots: true, imageSize: 0.38, margin: 12 },
+          dotsOptions: {
+            type: store.design.dotsType,
+            ...(store.design.isGradient
+              ? {
+                gradient: {
+                  type: store.design.gradientType,
+                  colorStops: [
+                    { offset: 0, color: store.design.dotsColor },
+                    { offset: 1, color: store.design.dotsColor2 }
+                  ]
+                }
+              }
+              : { color: store.design.dotsColor }),
+          },
+          backgroundOptions: { color: store.design.backgroundColor },
+          cornersSquareOptions: { type: store.design.cornersSquareType, color: store.design.cornersSquareColor },
+          cornersDotOptions: { type: store.design.cornersDotType, color: store.design.cornersDotColor },
+        };
 
-        // Guaranteed design.size attributes on root <svg> element (independent of 2x raster buffer)
-        svgText = svgText
-          .replace(/(<svg[^>]*?\bwidth=")[^"]*"/i, `$1${targetSize}"`)
-          .replace(/(<svg[^>]*?\bheight=")[^"]*"/i, `$1${targetSize}"`);
+        const svgInstance = new window.QRCodeStyling(svgOptions);
+        const rawBlob = await svgInstance.getRawData('svg');
+        const svgText = await rawBlob.text();
 
         const commentInjected = injectSvgHashComment(svgText, fullHash);
         const blob = new Blob([commentInjected], { type: 'image/svg+xml' });
@@ -290,7 +313,7 @@ function AppInner() {
       toast.error('Export failed');
       console.error(err);
     }
-  }, [desktopInstance, mobileInstance, scriptState, hashPrefix, fullHash, toast, addToHistory, store]);
+  }, [desktopInstance, mobileInstance, scriptState, hashPrefix, fullHash, toast, addToHistory, store, qrData]);
 
   const onCopy = useCallback(async () => {
     const activeInstance = desktopInstance.current || mobileInstance.current;
