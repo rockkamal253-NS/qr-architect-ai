@@ -156,6 +156,7 @@ export const ColorInput = memo(function ColorInput({ value, onChange, label }) {
 /* ─── Slider ─── */
 export const Slider = memo(function Slider({ label, value, min, max, step = 1, onChange, unit = '' }) {
   const { isDark, textDim, textMuted } = useTheme();
+  const pct = ((value - min) / (max - min)) * 100;
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -166,7 +167,8 @@ export const Slider = memo(function Slider({ label, value, min, max, step = 1, o
         type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         aria-label={label}
-        className={cx('w-full h-1.5 rounded-full appearance-none cursor-pointer', isDark ? 'bg-white/10' : 'bg-slate-300')}
+        className="w-full appearance-none cursor-pointer bg-transparent focus:outline-none"
+        style={{ '--range-pct': `${pct}%` }}
       />
     </div>
   );

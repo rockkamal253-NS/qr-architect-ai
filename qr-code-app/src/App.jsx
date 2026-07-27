@@ -245,7 +245,7 @@ function AppInner() {
   return (
     <ThemeContext.Provider value={theme}>
       <div className={cx('min-h-screen font-sans relative overflow-x-hidden transition-colors duration-300',
-        store.isDark ? 'text-slate-100' : 'text-slate-900')}>
+        store.isDark ? 'dark text-slate-100' : 'text-slate-900')}>
 
         <div className={cx('fixed inset-0 -z-10', store.isDark ? 'bg-[#07081a]' : 'bg-[#e8e4dc]')}>
           <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full blur-3xl mesh-a bg-indigo-600/30" />

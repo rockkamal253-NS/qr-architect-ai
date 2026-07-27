@@ -132,7 +132,9 @@ else document.write('<h3>Open on mobile</h3><p><a href=${JSON.stringify(ios)}>iO
       const encoder = new TextEncoder();
       const bytes = encoder.encode(jsonStr);
       const base64 = btoa(String.fromCharCode(...bytes));
-      const base = typeof window !== 'undefined' ? window.location.origin : '';
+      const base = typeof window !== 'undefined'
+        ? `${window.location.origin}${window.location.pathname.replace(/\/$/, '')}`
+        : '';
       return `${base}/#bio:${base64}`;
     } catch (e) {
       console.error('Social encoding failed:', e);
