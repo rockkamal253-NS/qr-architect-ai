@@ -19,7 +19,15 @@ export const appendUTM = (baseStr, d) => {
 /* ─── Sanitization ─── */
 export const sanitize = (input) => {
   if (typeof input !== 'string') return '';
-  return DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim();
+  try {
+    if (typeof window !== 'undefined' && DOMPurify && typeof DOMPurify.sanitize === 'function') {
+      return DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] }).trim();
+    }
+    // Safe string fallback for non-browser/node environments
+    return input.replace(/<[^>]*>/g, '').trim();
+  } catch {
+    return input.trim();
+  }
 };
 
 export const sanitizeUrl = (url) => {
@@ -361,7 +369,8 @@ export const computeSha256 = async (rawInput) => {
     const normalized = String(rawInput).normalize('NFC');
     const encoder = new TextEncoder();
     const data = encoder.encode(normalized);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    const cryptoSubtle = (typeof window !== 'undefined' && window.crypto?.subtle) || globalThis.crypto?.subtle;
+    const hashBuffer = await cryptoSubtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const fullHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     const prefix = fullHash.slice(0, 8).replace(/[^a-z0-9]/gi, '0');

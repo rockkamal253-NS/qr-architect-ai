@@ -243,17 +243,31 @@ function AppInner() {
     }
   }, [store, toast]);
 
+  // Requirement: Redact Wi-Fi passwords in history for privacy & shoulder-surfing prevention
   const addToHistory = useCallback(() => {
+    const isWifi = store.activeTab === 'wifi';
+    const redactedInputs = isWifi ? { ...store.inputs, password: '' } : store.inputs;
+    const redactedData = isWifi ? qrData.replace(/P:[^;]*;/g, 'P:********;') : qrData;
+
     const item = {
       id: uid(),
       timestamp: Date.now(),
       tab: store.activeTab,
-      data: qrData,
-      inputs: store.inputs,
+      data: redactedData,
+      inputs: redactedInputs,
       design: store.design,
     };
     store.addHistory(item);
   }, [store, qrData]);
+
+  const onRestoreHistory = useCallback((item) => {
+    store.restoreFromHistory(item);
+    if (item.tab === 'wifi') {
+      toast.info('Restored Wi-Fi settings (password excluded for privacy)');
+    } else {
+      toast.success('Restored from history');
+    }
+  }, [store, toast]);
 
   // Requirement: Dedicated SVG QRCodeStyling instance to guarantee all 3 corner patterns are unclipped & fully visible
   const onDownload = useCallback(async (ext) => {
@@ -536,7 +550,7 @@ function AppInner() {
           open={historyOpen}
           onClose={() => setHistoryOpen(false)}
           history={store.history}
-          onRestore={store.restoreFromHistory}
+          onRestore={onRestoreHistory}
           onClear={() => { store.clearHistory(); toast.info('History cleared'); }}
         />
 

@@ -1,16 +1,29 @@
-# React + Vite
+# QR Architect AI — Web Application Studio
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This package contains the source code for the **QR Architect AI** studio web application.
 
-Currently, two official plugins are available:
+## Available Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+In the `qr-code-app` directory, you can run:
 
-## React Compiler
+### `npm run dev`
+Runs the app in the development mode.\
+Open [http://localhost:5173](http://localhost:5173) to view it in your browser.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### `npm run test`
+Launches the Vitest test runner for security, payload formatting, and privacy unit tests.
 
-## Expanding the ESLint configuration
+### `npm run build`
+Builds the app for production to the `dist` folder.\
+It correctly bundles React in production mode and optimizes the build for the best performance.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### `npm run preview`
+Locally previews the production build.
+
+## Features & Architecture
+
+- **`useAutoScale` Hook**: ResizeObserver-based auto-scaling preview container with `transform: scale()`.
+- **`useScanTest` Hook**: Real-time scannability indicator combining native `BarcodeDetector` with `jsQR` CPU fallback.
+- **Smart Logo Compressor**: Transparency-preserving logo optimizer limiting dimensions to max 1024px and files to $\le 500\text{KB}$.
+- **Privacy Engine**: Redacts Wi-Fi passwords from disk persistence and history snapshots.
+
