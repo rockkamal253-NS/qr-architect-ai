@@ -173,7 +173,8 @@ export const useStore = create(
         partialize: (state) => ({
           isDark: state.isDark,
           activeTab: state.activeTab,
-          inputs: state.inputs,
+          // Wi-Fi password kept in memory only, never written to localStorage
+          inputs: { ...state.inputs, password: '' },
           design: state.design,
           history: state.history.slice(0, 8),
           stats: state.stats,

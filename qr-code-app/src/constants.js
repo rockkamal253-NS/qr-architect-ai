@@ -50,8 +50,11 @@ export const FORMATTERS = {
   },
 
   wifi: (d) => {
-    const ssid = sanitize(d.ssid);
-    const password = sanitize(d.password);
+    // Escape characters reserved by the WIFI: QR spec (\, ;, ,, ") so values
+    // containing them don't truncate or corrupt the payload.
+    const escapeWifi = (s) => (s || '').replace(/([\\;,"])/g, '\\$1');
+    const ssid = escapeWifi(sanitize(d.ssid));
+    const password = escapeWifi(sanitize(d.password));
     const encryption = sanitize(d.encryption) || 'WPA';
     const hidden = d.hidden ? 'true' : 'false';
     return `WIFI:T:${encryption};S:${ssid};P:${password};H:${hidden};;`;
