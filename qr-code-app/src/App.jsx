@@ -505,6 +505,7 @@ function AppInner() {
                   onDesignChange={onDesignChange}
                   onApplyPreset={onApplyPreset}
                   onLogoUpload={onLogoUpload}
+                  qrInstance={desktopInstance.current || mobileInstance.current}
                 />
               )}
 

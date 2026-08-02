@@ -2,10 +2,13 @@ import { memo } from 'react';
 import { Palette, ImagePlus, Trash2 } from 'lucide-react';
 import { useTheme } from '../hooks';
 import { Segmented, ColorInput, Slider, PatternGlyph, cx } from '../ui-components';
-import { PRESETS } from '../constants';
+import { PRESETS, getQuietZoneThreshold } from '../constants';
 
-export const Designer = memo(function Designer({ design, onDesignChange, onApplyPreset, onLogoUpload }) {
+export const Designer = memo(function Designer({ design, onDesignChange, onApplyPreset, onLogoUpload, qrInstance }) {
   const { isDark, glass, glassSoft, borderSoft, textDim, textMuted } = useTheme();
+
+  const quietZoneThreshold = getQuietZoneThreshold(qrInstance, design.size) || 12;
+  const isMarginLow = design.margin < quietZoneThreshold;
 
   return (
     <section className={cx('rounded-3xl border grain overflow-hidden', glass)}>
@@ -170,7 +173,16 @@ export const Designer = memo(function Designer({ design, onDesignChange, onApply
             </div>
 
             <div className={cx('pt-4 border-t space-y-4', borderSoft)}>
-              <Slider label="Margin" value={design.margin} min={0} max={40} onChange={(v) => onDesignChange('margin', v)} unit="px" />
+              <div>
+                <Slider label="Margin" value={design.margin} min={0} max={40} onChange={(v) => onDesignChange('margin', v)} unit="px" />
+                {isMarginLow && (
+                  <div className="mt-1.5 flex items-center">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm toast-in">
+                      ⚠️ Quiet zone too small ({design.margin}px vs {quietZoneThreshold}px min) – may fail on busy backgrounds
+                    </span>
+                  </div>
+                )}
+              </div>
               <Slider label="Size" value={design.size} min={200} max={1200} step={10} onChange={(v) => onDesignChange('size', v)} unit="px" />
             </div>
 

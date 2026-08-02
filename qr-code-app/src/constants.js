@@ -611,3 +611,45 @@ export const clearOldAvatars = () => {
     }
   } catch { /* ignore */ }
 };
+
+/* ─── WCAG Contrast Ratio Calculation ─── */
+export function getContrastRatio(hex1, hex2) {
+  if (!hex1 || !hex2) return 21;
+  const parseHex = (h) => {
+    let hex = String(h).replace('#', '').trim();
+    if (hex === 'transparent' || !hex) return [255, 255, 255];
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    if (hex.length !== 6) return [255, 255, 255];
+    const num = parseInt(hex, 16);
+    if (isNaN(num)) return [255, 255, 255];
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  };
+
+  const getLuminance = (rgb) => {
+    const [r, g, b] = rgb.map(c => {
+      const v = c / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+
+  const rgb1 = parseHex(hex1);
+  const rgb2 = parseHex(hex2);
+
+  const l1 = getLuminance(rgb1);
+  const l2 = getLuminance(rgb2);
+
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/* ─── Quiet-Zone Safe Threshold Calculation (Minimum 4 modules) ─── */
+export function getQuietZoneThreshold(qrInstance, designSize) {
+  if (!qrInstance || !designSize) return 0;
+  const moduleCount = qrInstance._qrCode?.getModuleCount?.() ?? qrInstance._qr?.moduleCount ?? 0;
+  if (!moduleCount || moduleCount === 0) return 0;
+  const moduleSize = designSize / moduleCount;
+  return Math.ceil(4 * moduleSize);
+}

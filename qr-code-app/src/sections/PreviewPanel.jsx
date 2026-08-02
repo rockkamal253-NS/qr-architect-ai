@@ -1,6 +1,8 @@
 import { memo, useState, useRef, useEffect } from 'react';
 import { ScanLine, Download, Copy, Check, AlertCircle, Loader2, ChevronDown, FileImage, Layers, Share2 } from 'lucide-react';
 import { useTheme, useAutoScale, useScanTest } from '../hooks';
+import { getContrastRatio } from '../constants';
+import { PrintSimulator } from './PrintSimulator';
 import { cx } from '../ui-components';
 
 const PREVIEW_SIZE = 280;
@@ -51,6 +53,16 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
 
   // Requirement: Live Scan-Test Badge with BarcodeDetector & jsQR fallback
   const scanStatus = useScanTest(qrRef, [design.size, design.logoUrl, design.dotsColor, design.backgroundColor, qrData]);
+
+  // Requirement: WCAG Contrast Ratio Calculation
+  const bg = design.backgroundColor === 'transparent' ? '#FFFFFF' : design.backgroundColor;
+  const contrastRatio = getContrastRatio(design.dotsColor, bg);
+  const contrastBadgeColor = contrastRatio >= 7
+    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+    : contrastRatio >= 4.5
+      ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+      : 'bg-red-500/10 text-red-400 border-red-500/20';
+  const contrastIcon = contrastRatio >= 7 ? '✅' : contrastRatio >= 4.5 ? '⚠️' : '❌';
 
   const rasterResText = `PNG/JPEG/WebP: Export at ${design.size * 2} × ${design.size * 2} px (2× Ultra HD)`;
   const svgResText = `SVG: infinite vector scaling (at ${design.size} pt)`;
@@ -132,8 +144,8 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
               {svgResText}
             </div>
 
-            {/* Live Scan-Test Badge */}
-            <div className="pt-2 flex items-center justify-center">
+            {/* Live Scan-Test & Contrast Badges */}
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
               {scanStatus === 'success' && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm toast-in">
                   <span>✅</span> Scannable – ready to print
@@ -149,6 +161,10 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
                   <Loader2 size={12} className="animate-spin text-indigo-400" /> Checking scannability…
                 </span>
               )}
+
+              <span className={cx("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border shadow-sm toast-in", contrastBadgeColor)}>
+                <span>{contrastIcon}</span> Contrast: {contrastRatio.toFixed(1)}:1
+              </span>
             </div>
           </div>
 
@@ -213,6 +229,8 @@ export const PreviewPanel = memo(function PreviewPanel({ design, qrData, validat
                 <Check size={14} /> Verify Hash
               </button>
             </div>
+
+            <PrintSimulator mainCanvasRef={qrRef} />
           </div>
         </div>
       </div>
