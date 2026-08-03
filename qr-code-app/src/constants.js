@@ -671,11 +671,14 @@ export function redactWifiPassword(wifiString, password) {
   if (!wifiString) return '';
   let result = wifiString;
 
-  if (password && typeof password === 'string' && password.length > 0) {
-    result = result.split(password).join('********');
+  if (typeof password === 'string' && password.length > 0) {
+    if (result.includes(password)) {
+      result = result.split(password).join('********');
+    }
+  } else {
+    // Fallback pattern matching for Wi-Fi spec format: P:<password>;
+    result = result.replace(/P:[^;]*;/g, 'P:********;');
   }
 
-  // Fallback pattern matching for Wi-Fi spec format: P:<password>;
-  result = result.replace(/P:[^;]*;/g, 'P:********;');
   return result;
 }

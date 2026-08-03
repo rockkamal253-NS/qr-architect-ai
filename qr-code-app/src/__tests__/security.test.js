@@ -71,41 +71,89 @@ describe('Security & Privacy Unit Tests', () => {
     });
   });
 
-  describe('Wi-Fi Password Redaction (Special Character Handling)', () => {
-    it('redacts a simple password', () => {
-      const result = redactWifiPassword('WIFI:S:MyNet;T:WPA;P:hello123;;', 'hello123');
+  describe('Wi-Fi password redaction', () => {
+    it('redacts a simple alphanumeric password', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:hello123;;';
+      const result = redactWifiPassword(input, 'hello123');
       expect(result).not.toContain('hello123');
-      expect(result).toContain('P:********;');
+      expect(result).toContain('********');
+      expect(result).toContain('MyNetwork'); // SSID untouched
     });
 
-    it('redacts password with $ sign', () => {
-      const result = redactWifiPassword('WIFI:S:MyNet;T:WPA;P:Pa$$word;;', 'Pa$$word');
+    it('redacts password containing $ sign', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:Pa$$word;;';
+      const result = redactWifiPassword(input, 'Pa$$word');
       expect(result).not.toContain('Pa$$word');
-      expect(result).toContain('P:********;');
+      expect(result).toContain('********');
     });
 
-    it('redacts password with backslash', () => {
-      const result = redactWifiPassword('WIFI:S:MyNet;T:WPA;P:pass\\word;;', 'pass\\word');
+    it('redacts password containing backslash', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:pass\\word;;';
+      const result = redactWifiPassword(input, 'pass\\word');
       expect(result).not.toContain('pass\\word');
-      expect(result).toContain('P:********;');
+      expect(result).toContain('********');
     });
 
-    it('redacts password with dots', () => {
-      const result = redactWifiPassword('WIFI:S:MyNet;T:WPA;P:pass.word;;', 'pass.word');
+    it('redacts password containing dot', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:pass.word;;';
+      const result = redactWifiPassword(input, 'pass.word');
       expect(result).not.toContain('pass.word');
-      expect(result).toContain('P:********;');
+      expect(result).toContain('********');
     });
 
-    it('redacts password with multiple special chars', () => {
-      const result = redactWifiPassword('WIFI:S:MyNet;T:WPA;P:P@$$w.rd+test;;', 'P@$$w.rd+test');
+    it('redacts password containing plus sign', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:pass+word;;';
+      const result = redactWifiPassword(input, 'pass+word');
+      expect(result).not.toContain('pass+word');
+      expect(result).toContain('********');
+    });
+
+    it('redacts password containing parentheses', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:pass(word);;';
+      const result = redactWifiPassword(input, 'pass(word)');
+      expect(result).not.toContain('pass(word)');
+      expect(result).toContain('********');
+    });
+
+    it('redacts password containing square brackets', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:pass[word];;';
+      const result = redactWifiPassword(input, 'pass[word]');
+      expect(result).not.toContain('pass[word]');
+      expect(result).toContain('********');
+    });
+
+    it('redacts password with multiple special characters', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:P@$$w.rd+test;;';
+      const result = redactWifiPassword(input, 'P@$$w.rd+test');
       expect(result).not.toContain('P@$$w.rd+test');
-      expect(result).toContain('P:********;');
+      expect(result).toContain('********');
     });
 
-    it('fallback redaction works even if password string is omitted', () => {
-      const result = redactWifiPassword('WIFI:S:MyNet;T:WPA;P:SecretPass123;;');
+    it('does not redact non-matching password', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:hello123;;';
+      const result = redactWifiPassword(input, 'wrongpass');
+      expect(result).toContain('hello123');
+      expect(result).not.toContain('********');
+    });
+
+    it('does not redact SSID or other fields', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:hello123;;';
+      const result = redactWifiPassword(input, 'hello123');
+      expect(result).toContain('MyNetwork');
+      expect(result).toContain('WPA');
+    });
+
+    it('fallback redaction works even if password parameter is omitted', () => {
+      const input = 'WIFI:S:MyNetwork;T:WPA;P:SecretPass123;;';
+      const result = redactWifiPassword(input);
       expect(result).not.toContain('SecretPass123');
       expect(result).toContain('P:********;');
+    });
+
+    it('non-Wi-Fi strings (URLs, plain text) are untouched when non-matching', () => {
+      const input = 'https://example.com/page?query=test';
+      const result = redactWifiPassword(input, 'secretpassword');
+      expect(result).toBe(input);
     });
   });
 });
