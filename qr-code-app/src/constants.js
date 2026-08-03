@@ -653,3 +653,29 @@ export function getQuietZoneThreshold(qrInstance, designSize) {
   const moduleSize = designSize / moduleCount;
   return Math.ceil(4 * moduleSize);
 }
+
+/**
+ * Escape special regex characters in a string so it can be safely used
+ * as a literal pattern in new RegExp() or String.prototype.replace().
+ */
+export function escapeRegExp(string) {
+  if (!string) return '';
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Safely redact a Wi-Fi password from a formatted Wi-Fi string or raw payload.
+ * Uses split().join() and fallback regex to handle special characters ($, \, ., +, etc.) without string corruption.
+ */
+export function redactWifiPassword(wifiString, password) {
+  if (!wifiString) return '';
+  let result = wifiString;
+
+  if (password && typeof password === 'string' && password.length > 0) {
+    result = result.split(password).join('********');
+  }
+
+  // Fallback pattern matching for Wi-Fi spec format: P:<password>;
+  result = result.replace(/P:[^;]*;/g, 'P:********;');
+  return result;
+}

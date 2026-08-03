@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { QrCode } from 'lucide-react';
 import { useStore, DEFAULT_INPUTS, DEFAULT_DESIGN } from './store';
 import { useScriptLoader, useQR, useToast, ToastProvider, useHotkeys, ThemeContext, useContentHash, useTheme } from './hooks.jsx';
-import { FORMATTERS, validate, encodeState, decodeState, uid, getInitialsSvg, getAvatar, computeSha256, injectSvgHashComment, compressLogo } from './constants.js';
+import { FORMATTERS, validate, encodeState, decodeState, uid, getInitialsSvg, getAvatar, computeSha256, injectSvgHashComment, compressLogo, redactWifiPassword } from './constants.js';
 import { cx } from './ui-components.jsx';
 import { HeaderBar } from './sections/HeaderBar';
 import { AIEngine } from './sections/AIEngine';
@@ -247,7 +247,7 @@ function AppInner() {
   const addToHistory = useCallback(() => {
     const isWifi = store.activeTab === 'wifi';
     const redactedInputs = isWifi ? { ...store.inputs, password: '' } : store.inputs;
-    const redactedData = isWifi ? qrData.replace(/P:[^;]*;/g, 'P:********;') : qrData;
+    const redactedData = isWifi ? redactWifiPassword(qrData, store.inputs.password) : qrData;
 
     const item = {
       id: uid(),
