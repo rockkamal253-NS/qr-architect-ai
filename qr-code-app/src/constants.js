@@ -664,8 +664,8 @@ export function escapeRegExp(string) {
 }
 
 /**
- * Safely redact a Wi-Fi password from a formatted Wi-Fi string or raw payload.
- * Uses split().join() and fallback regex to handle special characters ($, \, ., +, etc.) without string corruption.
+ * @deprecated Prefer placeholder-based reconstruction via FORMATTERS.wifi({ ...inputs, password: '********' }).
+ * String-search redaction on already-escaped Wi-Fi strings can desync when passwords contain reserved characters.
  */
 export function redactWifiPassword(wifiString, password) {
   if (!wifiString) return '';

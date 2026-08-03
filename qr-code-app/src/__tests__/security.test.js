@@ -71,7 +71,30 @@ describe('Security & Privacy Unit Tests', () => {
     });
   });
 
-  describe('Wi-Fi password redaction', () => {
+  describe('Placeholder-Based Wi-Fi Password Redaction (FORMATTERS.wifi)', () => {
+    it('redacted Wi-Fi data never contains any part of a password with reserved characters', () => {
+      const password = 'pass;word"with,chars\\here';
+      const inputs = { ssid: 'MyNetwork', password, encryption: 'WPA' };
+
+      const realQrData = FORMATTERS.wifi(inputs);
+      const redacted = FORMATTERS.wifi({ ...inputs, password: '********' });
+
+      expect(redacted).not.toContain('word');
+      expect(redacted).not.toContain(password);
+      expect(realQrData).not.toBe(redacted); // sanity: they actually differ
+      expect(redacted).toContain('MyNetwork'); // SSID untouched
+    });
+
+    it('reconstructs redacted Wi-Fi string for simple alphanumeric passwords', () => {
+      const inputs = { ssid: 'MyNetwork', password: 'hello123', encryption: 'WPA' };
+      const redacted = FORMATTERS.wifi({ ...inputs, password: '********' });
+
+      expect(redacted).not.toContain('hello123');
+      expect(redacted).toContain('MyNetwork');
+    });
+  });
+
+  describe('Wi-Fi password redaction (Legacy Helper)', () => {
     it('redacts a simple alphanumeric password', () => {
       const input = 'WIFI:S:MyNetwork;T:WPA;P:hello123;;';
       const result = redactWifiPassword(input, 'hello123');

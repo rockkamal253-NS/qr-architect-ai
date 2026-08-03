@@ -247,7 +247,9 @@ function AppInner() {
   const addToHistory = useCallback(() => {
     const isWifi = store.activeTab === 'wifi';
     const redactedInputs = isWifi ? { ...store.inputs, password: '' } : store.inputs;
-    const redactedData = isWifi ? redactWifiPassword(qrData, store.inputs.password) : qrData;
+    const redactedData = isWifi
+      ? FORMATTERS.wifi({ ...store.inputs, password: '********' })
+      : qrData;
 
     const item = {
       id: uid(),
